@@ -6,7 +6,7 @@
 
 Demonstra o percurso completo de um ataque de keylogging usando um trojan:
 
-1. **Trojan (Calculadora)** - App que parece uma calculadora normal, mas roda um keylogger oculto em background
+1. **Trojan (Flappy Bird)** - Jogo que parece normal, mas roda um keylogger oculto em background
 2. **Servidor C2** - Recebe as teclas e exibe num dashboard web em tempo real
 
 ## Requisitos
@@ -31,17 +31,17 @@ python server/app.py
 # 4. Abrir o dashboard no navegador
 # http://localhost:8080
 
-# 5. Abrir a calculadora trojan (Terminal 2 - com venv ativado)
-python trojan/calculadora.py
+# 5. Abrir o Flappy Bird trojan (Terminal 2 - com venv ativado)
+python trojan/flappybird.py
 
-# 6. A calculadora abre - tudo que a vitima digitar aparece no dashboard
+# 6. A vitima joga Flappy Bird - tudo que digitar aparece no dashboard
 ```
 
 ## Gerar .app e .dmg
 
 ```bash
 ./trojan/build_app.sh
-# Gera: dist/Calculadora.app e dist/Calculadora-UFPB-Demo.dmg
+# Gera: dist/Flappy Bird.app e dist/FlappyBird-Install.dmg
 ```
 
 ## macOS - Permissao necessaria
@@ -59,7 +59,8 @@ keylogger-demo/
     templates/
       dashboard.html    # Dashboard web em tempo real
   trojan/
-    calculadora.py      # Calculadora trojan com keylogger oculto
+    flappybird.py       # Flappy Bird trojan com keylogger oculto
+    generate_icon.py    # Gera icone do app
     build_app.sh        # Gera .app + .dmg
   requirements.txt
   venv/                 # Virtual environment

